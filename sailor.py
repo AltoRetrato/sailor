@@ -152,7 +152,7 @@ class Display(View):
         padding = ' ' * min(print_width, self.min_width - len(line))
         try:
           rect.screen.addstr(rect.y + i, rect.x, line[:print_width] + padding, curses.color_pair(col) | self.attr)
-        except curses.error, e:
+        except curses.error as e:
           logger.warn(str(e))
 
 
@@ -258,7 +258,7 @@ class Grid(View):
     self.size_grid = [[col.size(rect) for col in row]
                       for row in self.grid]
     cols = len(self.size_grid[0])
-    self.col_widths = [max(self.size_grid[i][col_nr][0] for i in range(len(self.size_grid)))
+    self.col_widths = [max(self.size_grid[i][col_nr][0] for i in list(range(len(self.size_grid))))
                        for col_nr in range(cols)]
     self.row_heights = [max(col[1] for col in row)
                         for row in self.size_grid]
@@ -341,12 +341,12 @@ class Box(View):
         if self.underscript:
           s = self.underscript.size(rect)
           self.underscript.display(rect.adj_rect(max(3, rect_w - s[0] - 3), rect_h - 1))
-      except curses.error, e:
+      except curses.error as e:
         # We should not have sent this invalid draw command...
         logger.warn(e)
       try:
         self.inner.display(rect.adj_rect(1 + self.x_margin, 1 + self.y_margin, 1 + self.x_margin, 1 + self.y_margin))
-      except curses.error, e:
+      except curses.error as e:
         # We should not have sent this invalid draw command...
         logger.warn(e)
 
@@ -898,7 +898,7 @@ class Edit(Control):
       # Custom highlighting
       try:
         colorized = self.highlight(self.value)
-      except Exception, e:
+      except curses.error as e:
         logger.error(str(e))
 
     # Make the field longer for the cursor or display purposes
@@ -983,14 +983,14 @@ class AutoCompleteEdit(Edit):
   complete_fn is a function that gets the current word under
   the cursor, and should return all possible completions.
   """
-  def __init__(self, value, complete_fn, min_size=0, letters=string.letters, **kwargs):
+  def __init__(self, value, complete_fn, min_size=0, **kwargs):
     super(AutoCompleteEdit, self).__init__(value=value, min_size=min_size, **kwargs)
     self.complete_fn = complete_fn
     self.popup_visible = False
     self.select = SelectList([], 0, width=70, show_captions_at=30)
     self.popup = Popup(self.select, on_close=self.on_close, underscript='( ^N, ^P to move, Enter to select )')
     self.layer = None
-    self.letters = letters
+
 
   def on_close(self):
     pass
@@ -1014,11 +1014,11 @@ class AutoCompleteEdit(Edit):
     Returns (offset, string).
     """
     i = min(self.cursor, len(self.value) - 1)  # Inclusive
-    while (i > 0 and self.value[i] in self.letters and
-           self.value[i-1] in self.letters):
+    while (i > 0 and self.value[i].isalpha() and
+           self.value[i-1].isalpha()):
       i -= 1
     j = i + 1  # Exclusive
-    while (j < len(self.value) and self.value[j] in self.letters):
+    while (j < len(self.value) and self.value[j].isalpha()):
       j += 1
     return (i, self.value[i:j])
 
@@ -1175,7 +1175,7 @@ class PreviewPane(Control):
       with file(filename, 'w') as f:
         f.write(self._text)
       Toasty('%s saved' % filename).show(self.app)
-    except Exception, e:
+    except curses.error as e:
       Toasty(str(e), duration=datetime.timedelta(seconds=5)).show(self.app)
 
 
@@ -1467,7 +1467,7 @@ def get_all(root, ids):
 
 
 def set_all(root, dct):
-  for id, value in dct.iteritems():
+  for id, value in dct.items():
     try:
       obj = root.find(id)
       if hasattr(obj, 'value'):
